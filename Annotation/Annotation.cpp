@@ -7,6 +7,7 @@
 #include <atlstr.h>
 #include <opencv2\opencv.hpp>
 #include "windows.h"
+#include <direct.h>
 using namespace std;
 using namespace cv;
 
@@ -185,7 +186,10 @@ int _tmain()
 	
 	CString fileName_record;
 	fileName_record.Format("..\\output\\Label_%s.txt", videoFileName.Right(25).Left(21));
-	
+	CString fileName_imageFolder;
+	fileName_imageFolder.Format("..\\output\\Image_%s", videoFileName.Right(25).Left(21));
+	_mkdir(fileName_imageFolder);  
+
 
 	for (int i=0; i<frameSize; i++)
 	{
@@ -194,8 +198,7 @@ int _tmain()
 		outfile.open(fileName_record,ios::out | ios::app);
 		
 		CString fileName_image;
-		
-		fileName_image.Format("..\\output\\p%d.jpg",i);
+		fileName_image.Format("..\\output\\%s\\%04d.jpg", fileName_imageFolder, i);
 
 		// Select RGB or depth image to show
 		if (isShowColor)
@@ -207,6 +210,10 @@ int _tmain()
 			copyImg(showImage, &(IplImage)depthMat, r_heigth, r_width);
 		}
   		
+		//The image for saving
+		IplImage* saveImage;
+		saveImage = cvCreateImage(cvSize(r_width,r_heigth),8,3);
+		copyImg(saveImage, showImage, r_heigth, r_width);
 
 		// Draw the skeleton on the image
 		//drawSkeleton(showImage, myReadVideo.vSkeletonData[i]);
@@ -236,6 +243,11 @@ int _tmain()
 
 			if(Drawing)
 			{
+				if (clickTime == 1)
+				{
+					cvSaveImage(fileName_image,saveImage);
+				}
+				
 				DrawRect(temp,box);
 			}
 			cvShowImage("color_skeleton",temp);
@@ -245,9 +257,9 @@ int _tmain()
 		cvReleaseImage(&temp);
 		cout<<"Frame "<<i<<" has been processed"<<endl;
 
-
+		cvReleaseImage(&saveImage);
 		//cvShowImage("color_skeleton",showImage);
-		//cvSaveImage(fileName,tempImage);
+		
 		//cvWaitKey(10);
 		outfile.close();
 	}
