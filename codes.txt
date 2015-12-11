@@ -1,0 +1,12 @@
+		tempImage = cvCreateImage(cvSize(r_width,r_heigth),8,3);
+		for (int rows=0; rows<r_heigth; rows++)
+		{
+			uchar* src_ptr = (uchar*)(tempImage->imageData + rows*tempImage->widthStep);
+			uchar* src_ptr_depth = (uchar*)(depthImage->imageData + rows*depthImage->widthStep);
+			for (int cols=0; cols<r_width; cols++)
+			{
+				src_ptr[3*cols + 0] = src_ptr_depth[3*cols + 0];
+				src_ptr[3*cols + 1] = src_ptr_depth[3*cols + 1];
+				src_ptr[3*cols + 2] = src_ptr_depth[3*cols + 2];
+			}
+		}
