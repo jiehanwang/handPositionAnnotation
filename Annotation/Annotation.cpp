@@ -17,6 +17,8 @@ bool Drawing=false;
 CvPoint mouse;
 int clickTime;
 int frameID;
+CvPoint l_hand;
+CvPoint r_hand;
 
 
 void drawSkeleton(IplImage* tempImage, SLR_ST_Skeleton skeleton)
@@ -125,11 +127,11 @@ void MouseDraw(int event,int x,int y,int flags,void*param)
 				outfile<<x<<" "<<y<<" ";
 				clickTime += 1;
 			}
-			else if (clickTime == 2)
-			{
-				outfile<<x<<" "<<y<<" ";
-				clickTime += 1;
-			}
+// 			else if (clickTime == 2)
+// 			{
+// 				outfile<<x<<" "<<y<<" ";
+// 				clickTime += 1;
+// 			}
 
 			
 			Drawing=true;
@@ -144,12 +146,12 @@ void MouseDraw(int event,int x,int y,int flags,void*param)
 			}
 			else if (clickTime == 2)
 			{
-				outfile<<x<<" "<<y<<" ";
+				outfile<<x<<" "<<y<<" "<<l_hand.x<<" "<<l_hand.y<<" "<<r_hand.x<<" "<<r_hand.y<<endl;
 			}
-			else if (clickTime == 3)
-			{
-				outfile<<x<<" "<<y<<endl;
-			}
+// 			else if (clickTime == 3)
+// 			{
+// 				outfile<<x<<" "<<y<<endl;
+// 			}
 
 			Drawing=false;
 			if (box.width<0)
@@ -170,103 +172,121 @@ void MouseDraw(int event,int x,int y,int flags,void*param)
 
 int _tmain()
 {
-	CString videoFileName;
-	Readvideo myReadVideo;
-	int frameSize;
-	videoFileName.Format("..\\data\\P01_0000_1_0_20121117.oni");
-	string  s   =   (LPCTSTR)videoFileName;
-	myReadVideo.readvideo(s);
-	frameSize = myReadVideo.vColorData.size();
-	cvNamedWindow("color_skeleton",1);
-	cout<<"The total frame is: "<<frameSize<<endl;
-	bool isShowColor = true;
+	int everyNframes = 5;   // Down sample
+	bool isShowColor = true;   //true: output the color. false: output the depth.
+	BOOL videoFindFlag;
+	CFileFind videoFileFind;
+	// A route containing all the sign videos to be labeled. 
+	CString route = "E:\\continuousDemoSign4test\\allTheSentences\\S10_1\\*.oni";
+	videoFindFlag = TRUE;
+	videoFindFlag = videoFileFind.FindFile(route);
+	while(videoFindFlag)
+	{ 
+		cvNamedWindow("color_skeleton",1);
+		Drawing=false;
+		cout<<"----------------------------------"<<endl;
 
-	
-	IplImage* showImage;
-	
-	CString fileName_record;
-	fileName_record.Format("..\\output\\Label_%s.txt", videoFileName.Right(25).Left(21));
-	CString fileName_imageFolder;
-	fileName_imageFolder.Format("..\\output\\Image_%s", videoFileName.Right(25).Left(21));
-	_mkdir(fileName_imageFolder);  
+		// Find the sign video
+		videoFindFlag = videoFileFind.FindNextFile();
+		CString videoFileName = videoFileFind.GetFilePath();
 
-
-	for (int i=0; i<frameSize; i++)
-	{
-		frameID = i;
-		clickTime = 0;
-		outfile.open(fileName_record,ios::out | ios::app);
+		Readvideo myReadVideo;
+		string  s   =   (LPCTSTR)videoFileName;
+		myReadVideo.readvideo(s);
+		int frameSize = myReadVideo.vColorData.size();
+		cout<<"The total frame is: "<<frameSize<<endl;
 		
-		CString fileName_image;
-		fileName_image.Format("..\\output\\%s\\%04d.jpg", fileName_imageFolder, i);
+		IplImage* showImage;
 
-		// Select RGB or depth image to show
-		if (isShowColor)
-			showImage = myReadVideo.vColorData[i];
-		else
+		CString fileName_record;
+		fileName_record.Format("..\\output\\Label_%s.txt", videoFileName.Right(25).Left(21));
+		CString fileName_imageFolder;
+		fileName_imageFolder.Format("..\\output\\Image_%s", videoFileName.Right(25).Left(21));
+		_mkdir(fileName_imageFolder);  
+
+		for (int i=0; i<frameSize; i+=everyNframes)
 		{
-			Mat depthMat = myReadVideo.retrieveColorDepth(myReadVideo.vDepthData[i]);
-			showImage = cvCreateImage(cvSize(r_width,r_heigth),8,3);
-			copyImg(showImage, &(IplImage)depthMat, r_heigth, r_width);
-		}
-  		
-		//The image for saving
-		IplImage* saveImage;
-		saveImage = cvCreateImage(cvSize(r_width,r_heigth),8,3);
-		copyImg(saveImage, showImage, r_heigth, r_width);
+			frameID = i;  // The global var
+			clickTime = 0;  // Initial the click time to 0. 
+			outfile.open(fileName_record,ios::out | ios::app);
 
-		// Draw the skeleton on the image
-		//drawSkeleton(showImage, myReadVideo.vSkeletonData[i]);
-		int boundLen = 60;
-		CvPoint p7;
-		p7.x = myReadVideo.vSkeletonData[i]._2dPoint[7].x;
-		p7.y = myReadVideo.vSkeletonData[i]._2dPoint[7].y;
-		CvPoint p11;
-		p11.x = myReadVideo.vSkeletonData[i]._2dPoint[11].x;
-		p11.y = myReadVideo.vSkeletonData[i]._2dPoint[11].y;
-		cvCircle(showImage,p7,2,cvScalar(225,0,0),3,8,0);
-		cvCircle(showImage,p11,2,cvScalar(225,0,0),3,8,0);
-// 		cvRectangle(showImage,cvPoint(p7.x-boundLen, p7.y-boundLen),
-// 			cvPoint(p7.x+boundLen, p7.y+boundLen),cvScalar(255,0,0), 0.5,8,0);
-// 		cvRectangle(showImage,cvPoint(p11.x-boundLen, p11.y-boundLen),
-// 			cvPoint(p11.x+boundLen, p11.y+boundLen),cvScalar(255,0,0),0.5,8,0);
+			CString fileName_image;
+			fileName_image.Format("%s\\%04d.jpg", fileName_imageFolder, i);
 
-
-		box = cvRect(0,0,-1,-1);
-		cvSetMouseCallback("color_skeleton", MouseDraw, (void*)showImage);
-		IplImage* temp = cvCloneImage(showImage);
-		while (1)
-		{
-			copyImg(temp, showImage, r_heigth, r_width);
-			cvLine(temp,cvPoint(0,mouse.y), cvPoint(r_width-1, mouse.y),cvScalar(200,200,200),1,8,0);
-			cvLine(temp,cvPoint(mouse.x, 0), cvPoint(mouse.x, r_heigth-1),cvScalar(200,200,200),1,8,0);
-
-			if(Drawing)
+			// Select RGB or depth image to show
+			if (isShowColor)
+				showImage = myReadVideo.vColorData[i];
+			else
 			{
-				if (clickTime == 1)
-				{
-					cvSaveImage(fileName_image,saveImage);
-				}
-				
-				DrawRect(temp,box);
+				Mat depthMat = myReadVideo.retrieveColorDepth(myReadVideo.vDepthData[i]);
+				showImage = cvCreateImage(cvSize(r_width,r_heigth),8,3);
+				copyImg(showImage, &(IplImage)depthMat, r_heigth, r_width);
 			}
-			cvShowImage("color_skeleton",temp);
-			if(cvWaitKey(100)==27)
-				break;
+
+			//The image for saving
+			IplImage* saveImage;
+			saveImage = cvCreateImage(cvSize(r_width,r_heigth),8,3);
+			copyImg(saveImage, showImage, r_heigth, r_width);
+
+			// Draw the skeleton on the image
+			//drawSkeleton(showImage, myReadVideo.vSkeletonData[i]);
+			int boundLen = 60;
+
+			// Draw the hand joints.
+			CvPoint p7;
+			p7.x = myReadVideo.vSkeletonData[i]._2dPoint[7].x;
+			p7.y = myReadVideo.vSkeletonData[i]._2dPoint[7].y;
+			CvPoint p11;
+			p11.x = myReadVideo.vSkeletonData[i]._2dPoint[11].x;
+			p11.y = myReadVideo.vSkeletonData[i]._2dPoint[11].y;
+			cvCircle(showImage,p7,2,cvScalar(225,0,0),3,8,0);
+			cvCircle(showImage,p11,2,cvScalar(225,0,0),3,8,0);
+			l_hand = p7;
+			r_hand = p11;
+			// 		cvRectangle(showImage,cvPoint(p7.x-boundLen, p7.y-boundLen),
+			// 			cvPoint(p7.x+boundLen, p7.y+boundLen),cvScalar(255,0,0), 0.5,8,0);
+			// 		cvRectangle(showImage,cvPoint(p11.x-boundLen, p11.y-boundLen),
+			// 			cvPoint(p11.x+boundLen, p11.y+boundLen),cvScalar(255,0,0),0.5,8,0);
+
+
+			box = cvRect(0,0,-1,-1);
+			cvSetMouseCallback("color_skeleton", MouseDraw, (void*)showImage);
+			IplImage* temp = cvCreateImage(cvSize(r_width,r_heigth),8,3); //cvCloneImage(showImage);
+			// Draw the bounding box of bands in the frame.
+			while (1)
+			{
+				copyImg(temp, showImage, r_heigth, r_width);
+				// Draw the guidelines. 
+				cvLine(temp,cvPoint(0,mouse.y), cvPoint(r_width-1, mouse.y),cvScalar(200,200,200),1,8,0);
+				cvLine(temp,cvPoint(mouse.x, 0), cvPoint(mouse.x, r_heigth-1),cvScalar(200,200,200),1,8,0);
+
+				if(Drawing)
+				{
+					if (clickTime == 1) 
+					{// If the frame has been labeled, the frame will be saved. 
+						cvSaveImage(fileName_image,saveImage);
+					}
+
+					DrawRect(temp,box);
+				}
+				cvShowImage("color_skeleton",temp);
+
+				// ESC to break and label the next frame.
+				if(cvWaitKey(100)==27)
+					break;
+			}
+			cvReleaseImage(&temp);
+			cvReleaseImage(&saveImage);
+			outfile.close();
+			cout<<"Frame "<<i<<"/"<<frameSize<<" has been processed"<<endl;
 		}
-		cvReleaseImage(&temp);
-		cout<<"Frame "<<i<<" has been processed"<<endl;
 
-		cvReleaseImage(&saveImage);
-		//cvShowImage("color_skeleton",showImage);
-		
-		//cvWaitKey(10);
-		outfile.close();
+		if (!isShowColor)
+			cvReleaseImage(&showImage);
+		cvDestroyWindow("color_skeleton");
 	}
-
 	
-	cvReleaseImage(&showImage);
-	cvDestroyWindow("color_skeleton");
+
 	cout<<"Done!"<<endl;
 	getchar();
 	return 0;
