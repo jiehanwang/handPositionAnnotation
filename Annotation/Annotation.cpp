@@ -19,6 +19,7 @@ int clickTime;
 int frameID;
 CvPoint l_hand;
 CvPoint r_hand;
+bool b_next;
 
 
 void drawSkeleton(IplImage* tempImage, SLR_ST_Skeleton skeleton)
@@ -147,6 +148,7 @@ void MouseDraw(int event,int x,int y,int flags,void*param)
 			else if (clickTime == 2)
 			{
 				outfile<<x<<" "<<y<<" "<<l_hand.x<<" "<<l_hand.y<<" "<<r_hand.x<<" "<<r_hand.y<<endl;
+				b_next = true;
 			}
 // 			else if (clickTime == 3)
 // 			{
@@ -174,10 +176,14 @@ int _tmain()
 {
 	int everyNframes = 5;   // Down sample
 	bool isShowColor = true;   //true: output the color. false: output the depth.
+	CvFont font;
+	cvInitFont(&font, CV_FONT_VECTOR0,0.5, 0.5, 0, 1, 8);
+
 	BOOL videoFindFlag;
 	CFileFind videoFileFind;
 	// A route containing all the sign videos to be labeled. 
-	CString route = "E:\\continuousDemoSign4test\\allTheSentences\\S10_1\\*.oni";
+	//CString route = "E:\\continuousDemoSign4test\\allTheSentences\\S10_1\\*.oni";
+	CString route = "..\\data\\*.oni";
 	videoFindFlag = TRUE;
 	videoFindFlag = videoFileFind.FindFile(route);
 	while(videoFindFlag)
@@ -206,6 +212,7 @@ int _tmain()
 
 		for (int i=0; i<frameSize; i+=everyNframes)
 		{
+			
 			frameID = i;  // The global var
 			clickTime = 0;  // Initial the click time to 0. 
 			outfile.open(fileName_record,ios::out | ios::app);
@@ -222,6 +229,9 @@ int _tmain()
 				showImage = cvCreateImage(cvSize(r_width,r_heigth),8,3);
 				copyImg(showImage, &(IplImage)depthMat, r_heigth, r_width);
 			}
+			CString showText;
+			showText.Format("Frame %03d / %03d", i, frameSize);
+			cvPutText(showImage, showText , cvPoint(40, 40), &font, CV_RGB(255,0,0));
 
 			//The image for saving
 			IplImage* saveImage;
@@ -253,6 +263,7 @@ int _tmain()
 			cvSetMouseCallback("color_skeleton", MouseDraw, (void*)showImage);
 			IplImage* temp = cvCreateImage(cvSize(r_width,r_heigth),8,3); //cvCloneImage(showImage);
 			// Draw the bounding box of bands in the frame.
+			b_next = false;
 			while (1)
 			{
 				copyImg(temp, showImage, r_heigth, r_width);
@@ -272,7 +283,8 @@ int _tmain()
 				cvShowImage("color_skeleton",temp);
 
 				// ESC to break and label the next frame.
-				if(cvWaitKey(100)==27)
+				//cvWaitKey(0);
+				if( cvWaitKey(100)==27 || b_next)
 					break;
 			}
 			cvReleaseImage(&temp);
